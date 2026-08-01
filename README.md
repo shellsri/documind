@@ -1,296 +1,106 @@
-# 📄 DocuMind AI
+# DocuMind — RAG + NL2SQL Assistant
 
-<p align="center">
+A local, API-independent AI assistant that combines two capabilities in one app:
 
-Enterprise Document Intelligence Platform powered by
-<b>Retrieval-Augmented Generation (RAG)</b>,
-<b>FAISS Vector Search</b>,
-<b>Natural Language SQL</b>, and
-<b>OCR-enabled PDF Processing</b>.
+1. **Document Q&A (RAG)** — ask natural-language questions over your own PDFs
+   (including scanned/image PDFs via OCR), with answers grounded in retrieved
+   passages and cited by source + page.
+2. **NL2SQL Query** — ask natural-language questions against a structured
+   database and get back generated SQL + results, with a safety guard that
+   only allows read-only `SELECT` queries.
 
-</p>
-
----
-
-## 🚀 Overview
-
-DocuMind AI is an offline-first enterprise document intelligence platform that enables users to:
-
-- 📄 Upload PDF documents
-- 🔍 Perform semantic search using FAISS
-- 🤖 Ask questions using Retrieval-Augmented Generation (RAG)
-- 📚 Receive grounded answers with document citations
-- 🗄 Query structured databases using Natural Language
-- 🧾 Automatically extract text from scanned PDFs using OCR
-
-The application combines document understanding and database querying into a single intelligent interface.
+Built to be runnable fully offline once models are downloaded — no dependency
+on paid APIs unless you choose to plug one in.
 
 ---
 
-# ✨ Features
-
-### 🤖 AI Document Assistant
-
-- Semantic document search
-- Retrieval-Augmented Generation
-- Source citations
-- Multi-document support
-- Offline inference using FLAN-T5
-
----
-
-### 📊 Natural Language SQL
-
-Ask questions like:
-
-> Which department has the most personnel?
-
-> Show all pending requisitions
-
-> Count active employees
-
-DocuMind automatically generates SQL, executes it, and displays the results.
-
----
-
-### 📂 Knowledge Base
-
-- Upload multiple PDFs
-- Automatic indexing
-- FAISS vector database
-- OCR support for scanned PDFs
-- Rebuild index with one click
-
----
-
-## 🏗 Architecture
+## Architecture
 
 ```
-
-User
-
-↓
-
-Streamlit UI
-
-↓
-
-Question
-
-↓
-
-Sentence Transformer Embeddings
-
-↓
-
-FAISS Vector Search
-
-↓
-
-Top Relevant Chunks
-
-↓
-
-FLAN-T5
-
-↓
-
-Grounded Answer
-
-↓
-
-Source Citations
-
-```
-
----
-
-# 🖥 Screenshots
-
-## Home
-
-![Home](screenshots/home.png)
-
----
-
-## AI Assistant
-
-![Assistant](screenshots/chat.png)
-
----
-
-## SQL Assistant
-
-![SQL](screenshots/sql.png)
-
----
-
-## Knowledge Base
-
-![Knowledge Base](screenshots/upload.png)
-
----
-
-# 🛠 Tech Stack
-
-| Category | Technology |
-|----------|------------|
-| Frontend | Streamlit |
-| LLM | Google FLAN-T5 |
-| Embeddings | Sentence Transformers |
-| Vector DB | FAISS |
-| OCR | Tesseract OCR |
-| Database | SQLite |
-| NLP Framework | LangChain |
-| ML Framework | PyTorch |
-
----
-
-# 📂 Project Structure
-
-```
-
-DocuMind
-
-├── app.py
-
-├── config.py
-
-├── data/
-
+documind/
 ├── ingest/
-
+│   ├── pdf_loader.py      # PyPDF2 text extraction + Tesseract OCR fallback for scanned pages
+│   └── build_index.py     # Chunking, MiniLM embeddings, FAISS index build
 ├── rag/
-
+│   ├── retriever.py       # FAISS similarity search over indexed chunks
+│   └── qa_chain.py        # Grounded prompt construction + FLAN-T5 generation
 ├── nl2sql/
-
+│   ├── schema.py          # Synthetic SQLite DB (personnel/departments/requisitions)
+│   └── query_engine.py    # NL -> SQL generation (local FLAN-T5 or OpenAI-compatible) + SQL safety guard
 ├── sample_docs/
-
-├── requirements.txt
-
-└── README.md
-
+│   └── generate_samples.py # Generates demo PDFs so the app works out of the box
+├── app.py                 # Streamlit UI: Document Q&A / NL2SQL / Upload & Index tabs
+├── config.py               # All paths + model names in one place
+└── requirements.txt
 ```
+
+**Tech stack:** Python, PyTorch, Hugging Face Transformers, Sentence-Transformers
+(all-MiniLM-L6-v2), FAISS, FLAN-T5, LangChain, SQLAlchemy, PyPDF2, pytesseract,
+Streamlit, pandas.
 
 ---
 
-# ⚙ Installation
-
-Clone the repository
-
-```bash
-git clone https://github.com/shellsri/documind.git
-```
-
-Move inside the project
+## Setup (run these on your own machine — this repo was built in a sandboxed
+environment without access to huggingface.co, so model downloads happen on first run)
 
 ```bash
-cd documind
-```
-
-Create a virtual environment
-
-```bash
+# 1. Create a virtual environment
 python -m venv venv
-```
+source venv/bin/activate   # Windows: venv\Scripts\activate
 
-Activate
-
-Windows
-
-```bash
-venv\Scripts\activate
-```
-
-Linux / macOS
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies
-
-```bash
+# 2. Install Python dependencies
 pip install -r requirements.txt
-```
 
-Generate sample documents
+# 3. (Optional, for OCR on scanned PDFs) install system dependencies
+# Ubuntu/Debian:
+sudo apt-get install tesseract-ocr poppler-utils
+# macOS:
+brew install tesseract poppler
 
-```bash
+# 4. Generate sample documents (or drop your own PDFs into sample_docs/)
 python sample_docs/generate_samples.py
-```
 
-Create SQL schema
-
-```bash
+# 5. Build the NL2SQL demo database
 python -m nl2sql.schema
-```
 
-Build vector index
-
-```bash
+# 6. Build the FAISS index from sample_docs/
 python -m ingest.build_index
-```
 
-Launch
-
-```bash
+# 7. Launch the app
 streamlit run app.py
 ```
 
----
-
-# 📊 Example Queries
-
-### Document Assistant
-
-- What is the internship leave policy?
-- Explain reimbursement rules.
-- What documents are required for onboarding?
-
-### Database Assistant
-
-- Count all employees.
-- Which department has the highest personnel?
-- Show pending requisitions.
-- Average salary by department.
+The first run of steps 6 and 7 will download `all-MiniLM-L6-v2` and
+`flan-t5-base` from Hugging Face (a few hundred MB total) — this needs
+internet access once, then everything runs locally.
 
 ---
 
-# 🌟 Highlights
+## Using an OpenAI-compatible API for better NL2SQL (optional)
 
-- Enterprise UI
-- Offline AI Support
-- OCR-enabled PDF Processing
-- Semantic Search
-- Grounded Responses
-- Source Citations
-- Natural Language SQL
-- FAISS Vector Database
+The local FLAN-T5 backend works fully offline but is weaker on complex SQL
+joins. If you have an API key, create a `.env` file:
 
----
+```
+OPENAI_API_KEY=your_key_here
+```
 
-# 🚀 Future Improvements
-
-- Authentication
-- Hybrid Search (BM25 + FAISS)
-- Cross Encoder Reranking
-- Chat History
-- Streaming Responses
-- Multi-user Workspaces
-- Cloud Deployment
-- Docker Support
+then select the "openai" backend in the NL2SQL tab for noticeably better
+query generation.
 
 ---
 
-# 👩‍💻 Author
+## Why this project
 
-**Shelly Srivastava**
+Built specifically to demonstrate practical, hands-on experience with:
+- Retrieval-Augmented Generation (embeddings, vector search, grounded generation)
+- Document intelligence (PDF parsing, OCR for scanned documents)
+- Natural Language to SQL pipelines with safety guards
+- Prompt engineering (few-shot prompting for structured output)
+- Vector databases (FAISS)
+- Full local/offline AI system design (no dependency on external inference APIs)
+- Streamlit dashboarding
 
-GitHub
-
-https://github.com/shellsri
-
----
-
-## ⭐ If you found this project useful, consider starring the repository.
+This maps directly onto the AI/ML engineering skill sets requested in current
+internship postings emphasizing RAG pipelines, LLM-based assistants, NL2SQL,
+document intelligence, and vector database implementation.
